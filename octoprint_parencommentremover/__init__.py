@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
+# coding=utf-8
+from __future__ import absolute_import
 
 import octoprint
 import octoprint.plugin
@@ -15,18 +15,18 @@ class ParenCommentRemoverStream(octoprint.filemanager.util.LineProcessorStream):
 		inside_comment = False
 		result = b''
 		for char in line:
-			if char == b'(':
+			if char == b'('[0]:
 				inside_comment = True
-				comment += char
-			elif char == b')':
+				comment += bytes([char])
+			elif char == b')'[0]:
 				inside_comment = False
-				comment += char
+				comment += bytes([char])
 			elif inside_comment:
-				comment += char
+				comment += bytes([char])
 			else:
-				result += char
+				result += bytes([char])
 		# extract semicolon comments
-		line = result + b';' + comment.rstrip() + b'\n'
+		line = result.rstrip() + b';  ' + comment.rstrip() + b'\n'
 		return line
 
 class ParenCommentRemoverPlugin(octoprint.plugin.OctoPrintPlugin):
@@ -38,27 +38,32 @@ class ParenCommentRemoverPlugin(octoprint.plugin.OctoPrintPlugin):
 		return octoprint.filemanager.util.StreamWrapper(file_object.filename, ParenCommentRemoverStream(file_object.stream()))
 
 	def get_update_information(self, *args, **kwargs):
-		return dict(
-			commentremover=dict(
-				displayName="Paren Comment Remover Plugin",
-				displayVersion=self._plugin_version,
+		return {
+			"commentremover":{
+				"displayName":"Paren Comment Remover Plugin",
+				"displayVersion":self._plugin_version,
 
 				# version check: github repository
-				type="github_release",
-				user="Patronics",
-				repo="OctoPrint-ParenCommentRemover",
-				current=self._plugin_version,
+				"type":"github_release",
+				"user":"Patronics",
+				"repo":"OctoPrint-ParenCommentRemover",
+				"current":self._plugin_version,
 
 				# update method: pip
-				pip="https://github.com/Patronics/OctoPrint-ParenCommentRemover/archive/{target_version}.zip"
-			)
-		)
+				"pip":"https://github.com/Patronics/OctoPrint-ParenCommentRemover/archive/{target_version}.zip"
+			}
+		}
 
 __plugin_name__ = "ParenCommentRemover"
-__plugin_description__ = "Splits multiple commands on one GCODE line with \":\" separator into multiple lines."
-__plugin_pythoncompat__ = ">=2.7,<4"
-__plugin_implementation__ = ParenCommentRemoverPlugin()
-__plugin_hooks__ = {
-	"octoprint.filemanager.preprocessor": __plugin_implementation__.split_all_commands,
+__plugin_description__ = "Removes (Paren-style G-code comments) before sending to machine"
+__plugin_pythoncompat__ = ">=3,<4"
+
+def __plugin_load__():
+	global __plugin_implementation__
+	__plugin_implementation__ = ParenCommentRemoverPlugin()
+
+	global __plugin_hooks__
+	__plugin_hooks__ = {
+	"octoprint.filemanager.preprocessor": __plugin_implementation__.remove_all_comments,
 	"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 }
